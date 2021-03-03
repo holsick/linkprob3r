@@ -32,12 +32,12 @@ def getLinks(url):
   targetPage = requests.get(url)
   targetContent = targetPage.content
   soup = bs(targetContent, 'html.parser')
-  
-	links = []
-  
-	for link in soup.findAll('a', attrs={ 'href': re.compile('^https://') }):
+
+  links = []
+	
+  for link in soup.findAll('a', attrs={ 'href': re.compile('^https://') }):
     links.append(link.get('href'))
-  
+		
 	links = list(dict.fromkeys(links))
   
 	return links
