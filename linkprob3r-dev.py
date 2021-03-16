@@ -141,3 +141,4 @@ else:
 x = Prober(target)
 x.getLinks()
 x.getSubdomains()
+x.getExternalDomains()
