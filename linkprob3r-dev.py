@@ -104,6 +104,29 @@ class Prober:
             print(f'\t[{self.red}-{self.white}] None Found')
 
         return self.subdomains
+    
+    def getExternalDomains(self):
+
+        '''
+        This basically does the same thing as getSubdomains(), however
+        it will only detect if a link is pointing to some external domain.
+
+        Examples would include a link to youtube, facebook, or twitter
+        '''
+
+        print(f'\n[{self.yellow}*{self.white}] External Domains\n')
+
+        for ext in self.links:
+            if mainDomain not in ext:
+                self.externals.append(ext)
+
+        # No need to filter further here, it's nice to see the full link
+        if len(self.externals) >= 1:
+            self.displayFound(self.externals)
+        else:
+            print(f'\t[{self.red}-{self.white}] None Found')
+
+        return self.externals
 
 
 # for debugging and testing purposes
