@@ -46,3 +46,6 @@ python3 linkprob3r.py -u https://example.com -j -r -w
 ## Development
 > For all of the original features, use the original script. I am currently working on the linkprob3r-dev.py script by refactoring the code to try and make it more robust and reliable. Some of the features are not yet implemented and it is not completely finished yet, but it is being actively worked on and will have the original features plus some soon.
 
+**For usage with the linkprob3r-dev.py script**:
+> So far there are no command line options implemented yet, to test the script edit the `target` variable with a url, and comment/uncomment any function calls below depending on what you want to run.
+
