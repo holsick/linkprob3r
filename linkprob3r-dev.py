@@ -133,6 +133,9 @@ class DeepInspect(Prober):
 
     # Extracted form details
     details = {}
+    
+    # List of JavaScript files after parsing
+    jsFiles = []
 
     def __init__(self, url):
         self.url = url
@@ -222,6 +225,32 @@ class DeepInspect(Prober):
                 if recurse.status_code in statusCodes:
                     print(f'\t[{super().red}!{super().white}] WARNING: {link} either redirected to another page, or requires authentication\n')
 
+    def getJSFiles(self):
+
+        '''
+        Grab all of the linked JavaScript files on the page
+
+        This is done just by detecting the .js extension in the filename
+        '''
+
+        print(f'\n[{super().yellow}*{super().white}] JavaScript Files\n')
+
+        for link in super().links:
+            if mainDomain in link:
+                jsRequest = requests.get(link, allow_redirects=False, verify=False)
+
+                if jsRequest.status_code == 200:
+                    jsContent = jsRequest.content.decode('latin-1')
+                    soup = bs(jsContent, 'html.parser')
+                    self.jsFiles = [i.get('src') for i in soup.find_all('script') if i.get('src')]
+
+        if len(self.jsFiles) >= 1:
+            super().displayFound(self.jsFiles)
+            print('\n')
+        else:
+            print(f'\t[{super().red}-{super().white}] None Found\n')
+
+        return self.jsFiles
 
 # for debugging and testing purposes
 target = 'enter a url here'
@@ -238,3 +267,4 @@ x.getSubdomains()
 x.getExternalDomains()
 y = DeepInspect(target)
 y.recursiveFind()
+y.getJSFiles()
