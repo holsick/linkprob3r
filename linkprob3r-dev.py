@@ -28,6 +28,9 @@ class Prober:
     # List of subdomains after parsing
     subdomains = []
 
+    # List of external domains after parsing
+    externals = []
+
     def __init__(self, url):
 
         '''
@@ -50,7 +53,7 @@ class Prober:
         Grab all of the links available on the target page
         '''
 
-        targetPage = requests.get(self.url)
+        targetPage = requests.get(self.url, verify=False)
         targetContent = targetPage.content
         soup = bs(targetContent, 'html.parser')
 
@@ -104,7 +107,7 @@ class Prober:
             print(f'\t[{self.red}-{self.white}] None Found')
 
         return self.subdomains
-    
+
     def getExternalDomains(self):
 
         '''
@@ -127,13 +130,13 @@ class Prober:
             print(f'\t[{self.red}-{self.white}] None Found')
 
         return self.externals
-    
-    
+
+
 class DeepInspect(Prober):
 
     # Extracted form details
     details = {}
-    
+
     # List of JavaScript files after parsing
     jsFiles = []
 
@@ -175,7 +178,7 @@ class DeepInspect(Prober):
         self.details['inputs'] = formInputs
 
         return self.details
-    
+
     def recursiveFind(self):
 
         '''
@@ -192,7 +195,7 @@ class DeepInspect(Prober):
 
         for link in super().links:
             if mainDomain in link:
-                recurse = requests.get(link, allow_redirects=False)
+                recurse = requests.get(link, allow_redirects=False, verify=False)
 
                 if recurse.status_code == 200:
                     page = recurse.content.decode('latin-1')
@@ -225,6 +228,7 @@ class DeepInspect(Prober):
                 if recurse.status_code in statusCodes:
                     print(f'\t[{super().red}!{super().white}] WARNING: {link} either redirected to another page, or requires authentication\n')
 
+
     def getJSFiles(self):
 
         '''
@@ -252,8 +256,12 @@ class DeepInspect(Prober):
 
         return self.jsFiles
 
+
+
+
+
 # for debugging and testing purposes
-target = 'enter a url here'
+target = 'https://[enter url here]'
 
 if len(target.split('.')) >= 3:
     mainDomain = target.split('.')[-2] + '.' + target.split('.')[-1]
