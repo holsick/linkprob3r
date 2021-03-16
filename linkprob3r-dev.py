@@ -127,6 +127,100 @@ class Prober:
             print(f'\t[{self.red}-{self.white}] None Found')
 
         return self.externals
+    
+    
+class DeepInspect(Prober):
+
+    # Extracted form details
+    details = {}
+
+    def __init__(self, url):
+        self.url = url
+
+    def getFormDetails(self, form):
+
+        '''
+        Extract contents from each found form if applicable.
+
+        The output will be in dictionary format and can be enumerated
+        using loops to get a clear output and view of the extracted form.
+
+        The underlying functionality returns the HTML details of a form,
+        including action, method and list of form controls.
+
+        https://www.thepythoncode.com/code/extracting-and-submitting-web-page-forms-in-python
+        '''
+        
+        action = form.attrs.get('action')
+        method = form.attrs.get('method')
+
+        formInputs = []
+
+        for inputTag in form.find_all('input'):
+            inputType = inputTag.attrs.get('type', 'text')
+            inputName = inputTag.attrs.get('name')
+            inputValue = inputTag.attrs.get('value', '')
+
+            formInputs.append({
+                'type': inputType,
+                'name': inputName,
+                'value': inputValue
+            })
+
+        self.details['action'] = action
+        self.details['method'] = method
+        self.details['inputs'] = formInputs
+
+        return self.details
+    
+    def recursiveFind(self):
+
+        '''
+        This function will make the bulk of the requests.
+
+        If this option is ran, the program will recursively follow each found
+        link and detect available forms on each page (within the target scope).
+
+        For each page that it visits, a counter will be started to keep track of
+        the amount of forms on each page while displaying their contents in the terminal.
+        '''
+
+        print(f'\n[{super().yellow}*{super().white}] Links with Forms\n')
+
+        for link in super().links:
+            if mainDomain in link:
+                recurse = requests.get(link, allow_redirects=False)
+
+                if recurse.status_code == 200:
+                    page = recurse.content.decode('latin-1')
+                    soup = bs(page, 'html.parser')
+                    forms = soup.find_all('form')
+
+                    if forms is not None and len(forms) > 0:
+                        print(f'\t[{super().blue}form{super().white}] {super().green}{link}{super().white}')
+                        for i, form in enumerate(forms, start=1):
+                            try:
+                                formDetails = self.getFormDetails(form)
+                                print('\t' + f'{super().blue}=' * 60 + super().white, f'form #{i}', f'{super().blue}=' * 60 + super().white)
+                                print(f'\t{super().blue}Action:{super().white} {formDetails["action"]}')
+                                print(f'\t{super().blue}Method:{super().white} {formDetails["method"]}')
+
+                                for _input in formDetails['inputs']:
+                                    print(f'\t{super().blue}Inputs:{super().white} {_input}')
+
+                            except:
+                                pass
+
+                            print('\n')
+
+                    else:
+                        print(f'\t[{super().red}!{super().white}] None Found')
+                        return
+
+                statusCodes = [301, 302, 401, 403]
+
+                if recurse.status_code in statusCodes:
+                    print(f'\t[{super().red}!{super().white}] WARNING: {link} either redirected to another page, or requires authentication\n')
 
 
 # for debugging and testing purposes
@@ -142,3 +236,5 @@ x = Prober(target)
 x.getLinks()
 x.getSubdomains()
 x.getExternalDomains()
+y = DeepInspect(target)
+y.recursiveFind()
