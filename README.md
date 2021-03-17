@@ -57,7 +57,7 @@ Options:
   -o OUTFILE, --outfile=OUTFILE
                         file to save results to
   -H HEADERS, --headers=HEADERS
-                        Use custom HTTP headers
+                        Use custom HTTP headers (separated by commas)
 ```
 
 ## Development
