@@ -312,7 +312,7 @@ if __name__ == '__main__':
     parser.add_option('-r', '--recursive', action='store_true', dest='recursive', default=False, help='recursively find forms and their info on found links')
     parser.add_option('-j', '--javascript', action='store_true', dest='javascript', default=False, help='include javascript files in the output')
     parser.add_option('-o', '--outfile', type='string', dest='outfile', help='file to save results to')
-    parser.add_option('-H', '--headers', type='string', dest='headers', help='Use custom HTTP headers')
+    parser.add_option('-H', '--headers', type='string', dest='headers', help='Use custom HTTP headers (separated by commas)')
 
     (options, args) = parser.parse_args()
 
