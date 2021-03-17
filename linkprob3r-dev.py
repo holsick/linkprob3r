@@ -2,10 +2,8 @@
 
 import re
 import sys
-import string
 import requests
 from art import *
-from time import sleep
 from colorama import Fore, Style
 from optparse import OptionParser as op
 from bs4 import BeautifulSoup as bs
@@ -31,13 +29,19 @@ class Prober:
     # List of external domains after parsing
     externals = []
 
-    def __init__(self, url):
+    # Default headers
+    headers = { 
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36' 
+    }
+
+    def __init__(self, url, headers=headers):
 
         '''
         Initialize the start of the program with colors and the main header
         '''
 
         self.url = url
+        self.headers = headers
         print(self.bright + self.blue + '')
         tprint('Holsick\'s Link Prob3r ---->', font='small')
         print(f'>>> Author: {self.green}@holsick{self.white}')
@@ -53,7 +57,7 @@ class Prober:
         Grab all of the links available on the target page
         '''
 
-        targetPage = requests.get(self.url, verify=False)
+        targetPage = requests.get(self.url, verify=False, headers=self.headers)
         targetContent = targetPage.content
         soup = bs(targetContent, 'html.parser')
 
@@ -195,7 +199,12 @@ class DeepInspect(Prober):
 
         for link in super().links:
             if mainDomain in link:
-                recurse = requests.get(link, allow_redirects=False, verify=False)
+                recurse = requests.get(
+                    link, 
+                    allow_redirects=False, 
+                    verify=False,
+                    headers=super().headers
+                )
 
                 if recurse.status_code == 200:
                     page = recurse.content.decode('latin-1')
@@ -241,7 +250,12 @@ class DeepInspect(Prober):
 
         for link in super().links:
             if mainDomain in link:
-                jsRequest = requests.get(link, allow_redirects=False, verify=False)
+                jsRequest = requests.get(
+                    link, 
+                    allow_redirects=False, 
+                    verify=False,
+                    headers=super().headers
+                )
 
                 if jsRequest.status_code == 200:
                     jsContent = jsRequest.content.decode('latin-1')
@@ -251,28 +265,113 @@ class DeepInspect(Prober):
         if len(self.jsFiles) >= 1:
             super().displayFound(self.jsFiles)
             print('\n')
+            return self.jsFiles
         else:
             print(f'\t[{super().red}-{super().white}] None Found\n')
-
-        return self.jsFiles
-
+            return
 
 
+class FileManager(DeepInspect):
 
+    def __init__(self, url, filename, javascript=[]):
+        self.url = url
+        self.filename = filename
+        self.javascript = javascript
 
-# for debugging and testing purposes
-target = 'https://[enter url here]'
+    def fileOutput(self):
 
-if len(target.split('.')) >= 3:
-    mainDomain = target.split('.')[-2] + '.' + target.split('.')[-1]
-else:
-    mainDomain = target.split('.')[0].strip('https://') + '.' + target.split('.')[1]
+        '''
+        Write contents to a file for later. It will not
+        include HTML form data, and does not include JavaScript files
+        by default. JavaScript inclusion should be explicitly specified.
+        '''
 
+        with open(self.filename, 'w+') as f:
+            f.write('Target: ' + self.url + '\n\n')
+            f.write('Links\n-----------------\n')
 
-x = Prober(target)
-x.getLinks()
-x.getSubdomains()
-x.getExternalDomains()
-y = DeepInspect(target)
-y.recursiveFind()
-y.getJSFiles()
+            for item in super().links:
+                f.write(item + '\n')
+
+            if len(self.javascript) > 0:
+                f.write('\nLinked JavaScript Files\n-------------------------\n')
+
+                for _js in self.javascript:
+                    f.write(_js + '\n')
+
+        print(f'\n[{super().green}+{super().white}] Output written to {self.filename}')
+        return
+
+if __name__ == '__main__':
+
+    # parse command line options
+
+    parser = op()
+
+    parser.add_option('-u', '--url', type='string', dest='url', help='target url')
+    parser.add_option('-r', '--recursive', action='store_true', dest='recursive', default=False, help='recursively find forms and their info on found links')
+    parser.add_option('-j', '--javascript', action='store_true', dest='javascript', default=False, help='include javascript files in the output')
+    parser.add_option('-o', '--outfile', type='string', dest='outfile', help='file to save results to')
+    parser.add_option('-H', '--headers', type='string', dest='headers', help='Use custom HTTP headers')
+
+    (options, args) = parser.parse_args()
+
+    if not options.url:
+        print(f'\n\t{Style.BRIGHT}[{Fore.YELLOW}!{Fore.WHITE}] Please provide a target. Use -h or --help for usage\n')
+        sys.exit()
+
+    try:
+        # Request 1: check if the target site is up or if it exists
+        check = requests.get(
+            options.url,
+            timeout=3.0,
+            verify=False
+        )
+
+        if check.status_code == 200:
+            print(f'[{Fore.GREEN}!{Fore.WHITE}] INFO: Connected to target website')
+
+    except requests.exceptions.ConnectionError:
+        print(f'[{Fore.RED}!{Fore.WHITE}] WARNING: Could not connect to target website')
+        sys.exit()
+
+    if len(options.url.split('.')) >= 3:
+        mainDomain = options.url.split('.')[-2] + '.' + options.url.split('.')[-1]
+    else:
+        mainDomain = options.url.split('.')[0].strip('https://') + '.' + options.url.split('.')[1]
+
+    # Begin Program
+
+    # Parse any custom headers
+    if options.headers:
+        customHeaders = {}
+        headersList = options.headers.split(',')
+
+        for header in headersList:
+            header = header.split(':')
+            customHeaders[header[0]] = header[1].strip()
+
+        linkprobe = Prober(options.url, customHeaders)
+    else:
+        linkprobe = Prober(options.url)
+
+    linkprobe.getLinks()
+    linkprobe.getSubdomains()
+    linkprobe.getExternalDomains()
+
+    if options.recursive or options.javascript:
+        inspect = DeepInspect(options.url)
+
+        if options.recursive:
+            inspect.recursiveFind()
+
+        if options.javascript:
+            inspect.getJSFiles()
+
+            if options.outfile:
+                outfile = FileManager(options.url, options.outfile, inspect.jsFiles)
+                outfile.fileOutput()
+    
+    if options.outfile and not options.javascript:
+        outfile = FileManager(options.url, options.outfile)
+        outfile.fileOutput()
