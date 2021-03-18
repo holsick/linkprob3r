@@ -30,11 +30,11 @@ class Prober:
     externals = []
 
     # Default headers
-    headers = { 
+    defaultHeaders = { 
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36' 
     }
 
-    def __init__(self, url, headers=headers):
+    def __init__(self, url, headers=defaultHeaders):
 
         '''
         Initialize the start of the program with colors and the main header
@@ -49,7 +49,29 @@ class Prober:
         print(f'{self.blue}>>> Quick and dirty way to find some information about your target website!')
         print(self.white + self.bright + '')
         print(f'[{self.yellow}*{self.white}] Target: {self.blue}{self.url}\n')
-        print(f'{self.white}[{self.yellow}*{self.white}] Finding Links...\n')
+
+        if len(self.headers) == 1:
+            if list(self.headers.values()) != list(self.defaultHeaders.values()):
+                print(f'{self.white}[{self.yellow}*{self.white}] Modified Headers:\n')
+
+                for key, value in self.headers.items():
+                    self.defaultHeaders[key] = value
+
+                    print(f'\t{key} : {value}')
+
+        elif len(self.headers) > 1:
+            for key, value in self.headers.items():
+                self.defaultHeaders[key] = value
+
+            print(f'{self.white}[{self.yellow}*{self.white}] Modified Headers:\n')
+            
+            for key, value in self.defaultHeaders.items():
+                if key != 'User-Agent' or value != self.defaultHeaders['User-Agent']:
+                    
+                    print(f'\t{key} : {value}')
+
+
+        print(f'\n{self.white}[{self.yellow}*{self.white}] Finding Links...\n')
 
     def getLinks(self):
 
@@ -57,7 +79,7 @@ class Prober:
         Grab all of the links available on the target page
         '''
 
-        targetPage = requests.get(self.url, verify=False, headers=self.headers)
+        targetPage = requests.get(self.url, verify=False, headers=self.defaultHeaders)
         targetContent = targetPage.content
         soup = bs(targetContent, 'html.parser')
 
@@ -203,7 +225,7 @@ class DeepInspect(Prober):
                     link, 
                     allow_redirects=False, 
                     verify=False,
-                    headers=super().headers
+                    headers=super().defaultHeaders
                 )
 
                 if recurse.status_code == 200:
@@ -254,7 +276,7 @@ class DeepInspect(Prober):
                     link, 
                     allow_redirects=False, 
                     verify=False,
-                    headers=super().headers
+                    headers=super().defaultHeaders
                 )
 
                 if jsRequest.status_code == 200:
@@ -325,7 +347,8 @@ if __name__ == '__main__':
         check = requests.get(
             options.url,
             timeout=3.0,
-            verify=False
+            verify=False,
+            allow_redirects=True
         )
 
         if check.status_code == 200:
@@ -348,10 +371,16 @@ if __name__ == '__main__':
         headersList = options.headers.split(',')
 
         for header in headersList:
-            header = header.split(':')
-            customHeaders[header[0]] = header[1].strip()
+            if 'http' in header or 'https' in header:
+                header = header.split(':')
+                headerValue = header[1].strip() + ':' + header[2]
+                customHeaders[header[0]] = headerValue
+            else:
+                header = header.split(':')
+                customHeaders[header[0]] = header[1].strip()
 
         linkprobe = Prober(options.url, customHeaders)
+
     else:
         linkprobe = Prober(options.url)
 
