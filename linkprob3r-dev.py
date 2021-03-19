@@ -3,6 +3,7 @@
 import re
 import sys
 import requests
+import itertools
 from art import *
 from colorama import Fore, Style
 from optparse import OptionParser as op
@@ -19,6 +20,8 @@ class Prober:
     yellow = Fore.YELLOW
     red = Fore.RED
     white = Fore.WHITE
+    magenta = Fore.MAGENTA
+    cyan = Fore.CYAN
 
     # Main list of found links
     links = []
@@ -34,6 +37,17 @@ class Prober:
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36' 
     }
 
+    # Link status codes
+    linkStatus = {
+        'alive200': [],
+        'alive301': [],
+        'alive302': [],
+        'alive401': [],
+        'alive403': [],
+        'dead404': [],
+        'other': []
+    }
+
     def __init__(self, url, headers=defaultHeaders):
 
         '''
@@ -42,6 +56,8 @@ class Prober:
 
         self.url = url
         self.headers = headers
+
+    def _header(self):
         print(self.bright + self.blue + '')
         tprint('Holsick\'s Link Prob3r ---->', font='small')
         print(f'>>> Author: {self.green}@holsick{self.white}')
@@ -156,6 +172,78 @@ class Prober:
             print(f'\t[{self.red}-{self.white}] None Found')
 
         return self.externals
+
+    def collect(self):
+
+        '''
+        Makes another request out to each link and simply
+        grabs the status code. See https://github.com/holsick/targetCollector
+        '''
+
+        print(f'\n[{self.yellow}*{self.white}] Gathering Status Codes\n')
+
+        print(f'[{self.yellow}*{self.white}] Legend: {self.green}200 {self.magenta}301 {self.blue}302 {self.red}401 {self.yellow}403 {self.cyan}404 {self.white}other\n')
+
+        for link in self.links:
+            linkResponse = requests.get(
+                link,
+                timeout=3.0,
+                headers=self.defaultHeaders,
+                allow_redirects=True,
+                verify=False
+            )
+
+            if linkResponse.status_code == 200:
+                self.linkStatus['alive200'].append(link)
+
+            elif linkResponse.status_code == 301:
+                redirectLocation = linkResponse.headers.get('location')
+                self.linkStatus['alive301'].append(link + ' redirects -> ' + redirectLocation)
+
+            elif linkResponse.status_code == 302:
+                redirectLocation = linkResponse.headers.get('location')
+                self.linkStatus['alive302'].append(link + ' redirects -> ' + redirectLocation)
+
+            elif linkResponse.status_code == 401:
+                self.linkStatus['alive401'].append(link)
+
+            elif linkResponse.status_code == 403:
+                self.linkStatus['alive403'].append(link)
+
+            elif linkResponse.status_code == 404:
+                self.linkStatus['dead404'].append(link)
+
+            else:
+                self.linkStatus['other'].append(link)
+
+        for key, value in (
+            itertools.chain.from_iterable(
+                [itertools.product((k,), v) for k, v in self.linkStatus.items()]
+            )
+        ):
+            if key == 'alive200':
+                print(f'\t{self.green}{value}')
+
+            elif key == 'alive301':
+                print(f'\t{self.magenta}{value}')
+
+            elif key == 'alive302':
+                print(f'\t{self.blue}{value}')
+
+            elif key == 'alive401':
+                print(f'\t{self.red}{value}')
+
+            elif key == 'alive403':
+                print(f'\t{self.yellow}{value}')
+
+            elif key == 'dead404':
+                print(f'\t{self.cyan}{value}')
+
+            else:
+                print('\t' + value)
+
+        print(self.white)
+
 
 
 class DeepInspect(Prober):
@@ -324,6 +412,7 @@ class FileManager(DeepInspect):
         print(f'\n[{super().green}+{super().white}] Output written to {self.filename}')
         return
 
+
 if __name__ == '__main__':
 
     # parse command line options
@@ -335,6 +424,7 @@ if __name__ == '__main__':
     parser.add_option('-j', '--javascript', action='store_true', dest='javascript', default=False, help='include javascript files in the output')
     parser.add_option('-o', '--outfile', type='string', dest='outfile', help='file to save results to')
     parser.add_option('-H', '--headers', type='string', dest='headers', help='Use custom HTTP headers (separated by commas)')
+    parser.add_option('-c', '--collect', action='store_true', dest='collect', default=False, help='Output color coded status of each link')
 
     (options, args) = parser.parse_args()
 
@@ -380,10 +470,13 @@ if __name__ == '__main__':
                 customHeaders[header[0]] = header[1].strip()
 
         linkprobe = Prober(options.url, customHeaders)
+        linkprobe._header()
 
     else:
         linkprobe = Prober(options.url)
+        linkprobe._header()
 
+    # Default functionality
     linkprobe.getLinks()
     linkprobe.getSubdomains()
     linkprobe.getExternalDomains()
@@ -400,6 +493,9 @@ if __name__ == '__main__':
             if options.outfile:
                 outfile = FileManager(options.url, options.outfile, inspect.jsFiles)
                 outfile.fileOutput()
+
+    if options.collect:
+        linkprobe.collect()
     
     if options.outfile and not options.javascript:
         outfile = FileManager(options.url, options.outfile)
